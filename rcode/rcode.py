@@ -163,7 +163,9 @@ def get_ipc_socket(max_idle_time: int = DEFAULT_MAX_IDLE_TIME, is_cursor=False) 
     return next_open_socket(sock_list, is_cursor=is_cursor)
 
 
-def send_message(bin_name: str, dirname: str, sid: str, skey: str):
+def send_message(
+    bin_name: str, dirname: str, sid: str, skey: str, new_window: bool = False
+):
     ipc_sock = f"/tmp/rssh-ipc-{sid}.sock"
 
     try:
@@ -177,6 +179,8 @@ def send_message(bin_name: str, dirname: str, sid: str, skey: str):
                 "skey": skey,
                 "bin": bin_name,
                 "path": os.path.abspath(dirname),
+                "is_file": os.path.isfile(dirname),
+                "new_window": new_window,
             }
         }
         sock.write(payload)
@@ -189,7 +193,10 @@ def send_message(bin_name: str, dirname: str, sid: str, skey: str):
 
 
 def run_remote(
-    dir_name, max_idle_time: int = DEFAULT_MAX_IDLE_TIME, is_cursor: bool = False
+    dir_name,
+    max_idle_time: int = DEFAULT_MAX_IDLE_TIME,
+    is_cursor: bool = False,
+    new_window: bool = False,
 ) -> NoReturn:
     if not dir_name:
         raise Exception("need dir name here")
@@ -200,7 +207,7 @@ def run_remote(
             sid = os.environ.get("RSSH_SID")
             skey = os.environ.get("RSSH_SKEY")
             bin_name = "cursor" if is_cursor else "code"
-            send_message(bin_name, dir_name, sid, skey)
+            send_message(bin_name, dir_name, sid, skey, new_window=new_window)
             return
         except Exception as e:
             print(f"Failed to connect to rssh's IPC socket: {e}\ntrying fallback to vscode's IPC socket")
@@ -212,6 +219,8 @@ def run_remote(
         code_binary = get_code_binary() if not is_cursor else get_cursor_binary()
         ipc_socket = get_ipc_socket(max_idle_time, is_cursor=is_cursor)
         args = [str(code_binary)]
+        if new_window:
+            args.append("--new-window")
         args.append(dir_name)
         os.environ["VSCODE_IPC_HOOK_CLI"] = str(ipc_socket)
 
@@ -229,6 +238,7 @@ def run_loacl(
     shortcut_name=None,
     open_shortcut_name=None,
     is_cursor=False,
+    new_window=False,
 ):
     # run local to open remote
     bin_name = "code" if not is_cursor else "cursor"
@@ -242,7 +252,11 @@ def run_loacl(
     if is_latest:
         if rcode_used_list:
             ssh_remote_latest = rcode_used_list[-1].split(",")[-1].strip()
-            proc = sp.run([bin_name, "--folder-uri", ssh_remote_latest], shell=is_win)
+            args = [bin_name]
+            if new_window:
+                args.append("--new-window")
+            args.extend(["--folder-uri", ssh_remote_latest])
+            proc = sp.run(args, shell=is_win)
             exit(proc.returncode)
         else:
             print("Not use rcode before, just use it once")
@@ -251,7 +265,11 @@ def run_loacl(
         for l in rcode_used_list:
             name, server = l.split(",")
             if open_shortcut_name.strip() == name.strip():
-                proc = sp.run([bin_name, "--folder-uri", server.strip()], shell=is_win)
+                args = [bin_name]
+                if new_window:
+                    args.append("--new-window")
+                args.extend(["--folder-uri", server.strip()])
+                proc = sp.run(args, shell=is_win)
                 # then add it to the latest
                 with open(rcode_home, "a") as f:
                     f.write(f"latest,{server}{str(os.linesep)}")
@@ -277,7 +295,11 @@ def run_loacl(
         else:
             f.write(f"latest,{ssh_remote}{str(os.linesep)}")
 
-    proc = sp.run([bin_name, "--folder-uri", ssh_remote], shell=is_win)
+    args = [bin_name]
+    if new_window:
+        args.append("--new-window")
+    args.extend(["--folder-uri", ssh_remote])
+    proc = sp.run(args, shell=is_win)
     exit(proc.returncode)
 
 
@@ -317,9 +339,16 @@ def main(is_cursor=False):
         type=str,
         required=False,
     )
+    parser.add_argument(
+        "-n",
+        "--new-window",
+        dest="new_window",
+        action="store_true",
+        help="force a new window",
+    )
     options = parser.parse_args()
     if IS_RSSH_CLIENT or IS_REMOTE_VSCODE:
-        run_remote(options.dir, is_cursor=is_cursor)
+        run_remote(options.dir, is_cursor=is_cursor, new_window=options.new_window)
     else:
         run_loacl(
             options.host,
@@ -328,6 +357,7 @@ def main(is_cursor=False):
             shortcut_name=options.shortcut_name,
             open_shortcut_name=options.open_shortcut,
             is_cursor=is_cursor,
+            new_window=options.new_window,
         )
 
 

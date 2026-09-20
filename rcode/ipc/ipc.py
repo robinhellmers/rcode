@@ -108,7 +108,12 @@ class MessageHandler:
         logging.info("host: %s uri: %s", remote_name, remote_dir)
         ssh_remote = f"vscode-remote://ssh-remote+{remote_name}{remote_dir}"
         try:
-            proc = sp.run([params["bin"], "--folder-uri", ssh_remote], shell=is_win)
+            args = [params["bin"]]
+            if params.get("new_window"):
+                args.append("--new-window")
+            uri_flag = "--file-uri" if params.get("is_file") else "--folder-uri"
+            args.extend([uri_flag, ssh_remote])
+            proc = sp.run(args, shell=is_win)
         except Exception as e:
             LOGGER.error("open_ide failed, params: %s", json.dumps(params), exc_info=True)
             raise e
