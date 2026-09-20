@@ -1,37 +1,71 @@
 ## Rcode
 
-This repo is fork from [code-connect](https://github.com/chvolkmann/code-connect)
-~~Thanks for this cool repo.
+This repository is a fork of [yihong0618/rcode](https://github.com/yihong0618/rcode).
 
 https://user-images.githubusercontent.com/1651790/172983742-b27a3fe0-2704-4fc8-b075-a6544783443a.mp4
 
 
 ## What changed
 
-1. PyPI
-2. support local open remote dir command `rcode ${ssh_name} ${ssh_dir}`
-3. support cursor to open remote dir command `rcursor ${ssh_name} ${ssh_dir}`
-4. you can also open dir from remote to local `cursor` just `cursor ${dir_name}`
+Compared with the upstream repository, this fork:
+
+1. Opens remote files through RSSH with `--file-uri` while preserving `--folder-uri` for directories.
+2. Supports `-n` and `--new-window` for RSSH, direct Remote SSH, and local URI launches.
+3. Uses editable pipx installations from the cloned repository on the laptop and remote machine.
+
+## Installation
+
+Install `pipx` using your operating system's package manager. Run `pipx ensurepath`
+if `~/.local/bin` is not already in your `PATH`, then start a new shell.
+
+Clone this repository on both the laptop and each remote machine where you want
+to use `rcode`. From each clone, run:
+
+```bash
+pipx install --editable . --force
+hash -r
+```
+
+`--force` replaces an older pipx installation of `rcode`. The installation is
+editable, so keep the cloned repository in place. Pulling and checking out code
+in that clone updates the code used by the commands.
+
+Verify the installation with:
+
+```bash
+command -v rcode
+command -v rcursor
+pipx runpip rcode show rcode
+rcode --help
+```
+
+The commands should resolve from `~/.local/bin`, and `Editable project location`
+should point to the clone.
+
+If `rssh-ipc` was running on the laptop during the replacement, exit the current
+remote shell, stop the old server, and reconnect so the new code and fresh
+session credentials are used:
+
+```bash
+pgrep -ax rssh-ipc
+kill <rssh-ipc-pid>
+rssh your-remote-server
+```
+
+Do not kill an `ssh` process merely because its command line contains an
+`rssh-ipc` socket path.
 
 ## INFO
 
-1. pip3 install rcode (or clone it pip3 install .)
-2. ~~install socat like: (sudo yum install socat)~~
-3. just `rcode file` like your VSCode `code .`
-4. or use cursor just `cursor .`
-5. local open remote use rcode if you use `.ssh/config` --> `rcode remote_ssh ~/test`
-6. local open latest remote `.ssh/config` --> `rcode -l or rcode --latest`
-7. add shortcut_name `rcode s ~/abc -sn abc` then you can use `rcode -os abc` to open this dir quickly
-8. support cursor to open remote dir command `rcursor ${ssh_name} ${ssh_dir}`
-9. Connect to your SSH server with `rssh`, and you can run `rcode/rcursor` on the server to launch VS Code/Cursor, even if they are not running.
+1. just `rcode file` like your VSCode `code .`
+2. or use cursor just `cursor .`
+3. local open remote use rcode if you use `.ssh/config` --> `rcode remote_ssh ~/test`
+4. local open latest remote `.ssh/config` --> `rcode -l or rcode --latest`
+5. add shortcut_name `rcode s ~/abc -sn abc` then you can use `rcode -os abc` to open this dir quickly
+6. support cursor to open remote dir command `rcursor ${ssh_name} ${ssh_dir}`
+7. Connect to your SSH server with `rssh`, and you can run `rcode/rcursor` on the server to launch VS Code/Cursor, even if they are not running.
 
-> Note:
-> - If using traditional SSH connection, be sure to [connect to the remote host](https://code.visualstudio.com/docs/remote/ssh#_connect-to-a-remote-host) first before typing any `rcode` in the terminal
-> - We may want to add `~/.local/bin` in to your `$PATH` in your `~/.zshrc` or `~/.bashrc` to enable `rcode` being resolved properly
-> ```diff
-> - export PATH=$PATH:/usr/local/go/bin
-> + export PATH=$PATH:/usr/local/go/bin:~/.local/bin
-> ```
+> Note: If using a traditional SSH connection, be sure to [connect to the remote host](https://code.visualstudio.com/docs/remote/ssh#_connect-to-a-remote-host) first before typing any `rcode` in the terminal.
 
 ## Remote Development with RSSH
 
